@@ -43,7 +43,7 @@ readChat s m = forever $ do
         addAddr a = do
             adrs <- takeMVar m
             case elem a adrs of
-                True  -> return ()
+                True  -> return () >> putMVar m adrs
                 False -> putMVar m (a:adrs)
 
 writeChat :: Socket -> MVar [SockAddr] -> IO ()
