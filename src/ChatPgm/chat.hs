@@ -31,6 +31,7 @@ parseArgs (h:p:_) = do
 setupSocket :: IO Socket
 setupSocket = do
     s <- socket AF_INET Datagram defaultProtocol
+    setSocketOption s Broadcast 4
     bindSocket s (SockAddrInet 3000 0)
     return s
 
