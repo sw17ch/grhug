@@ -16,13 +16,15 @@ main = withSocketsDo $ do
     sa <- parseArgs args
     s <- setupSocket
 
-    read_t <- forkIO $ readChat s
-    writeChat s sa
+    adrs <- newMVar sa
 
-parseArgs :: [String] -> IO SockAddr
+    read_t <- forkIO $ readChat s adrs
+    writeChat s adrs
+
+parseArgs :: [String] -> IO [SockAddr]
 parseArgs (h:p:_) = do
     host <- inet_addr h
-    return $ SockAddrInet port host
+    return $ [SockAddrInet port host]
     where
         port = fromIntegral . read $ p
 
@@ -32,13 +34,24 @@ setupSocket = do
     bindSocket s (SockAddrInet 3000 0)
     return s
 
-readChat :: Socket -> IO ()
-readChat s = forever $ do
+readChat :: Socket -> MVar [SockAddr] -> IO ()
+readChat s m = forever $ do
     (s,l,f) <- recvFrom s 2000
+    addAddr f
     putStrLn $ (show f) ++ " (" ++ (show l) ++ ") >>> " ++ s
+    where
+        addAddr a = do
+            adrs <- takeMVar m
+            case elem a adrs of
+                True  -> return ()
+                False -> putMVar m (a:adrs)
 
-writeChat :: Socket -> SockAddr -> IO ()
-writeChat s a = forever $ do
+writeChat :: Socket -> MVar [SockAddr] -> IO ()
+writeChat s m = forever $ do
     msg <- getLine
-    sendTo s msg a
-    putStrLn $ "Sent to " ++ (show a)
+    adrs <- readMVar m
+    mapM (snd msg) adrs
+    where
+        snd msg a = do
+            sendTo s msg a
+            putStrLn $ "Sent to " ++ (show a)
