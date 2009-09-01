@@ -31,6 +31,7 @@ parseArgs (h:p:_) = do
 setupSocket :: IO Socket
 setupSocket = do
     s <- socket AF_INET Datagram defaultProtocol
+    setSocketOption s Broadcast 4
     bindSocket s (SockAddrInet 3000 0)
     return s
 
@@ -41,10 +42,11 @@ readChat s m = forever $ do
     putStrLn $ (show f) ++ " (" ++ (show l) ++ ") >>> " ++ s
     where
         addAddr a = do
-            adrs <- takeMVar m
-            case elem a adrs of
-                True  -> return () >> putMVar m adrs
-                False -> putMVar m (a:adrs)
+            modifyMVar_ m (modify a)
+        modify a adrs = 
+            return $ case elem a adrs of
+                        True  -> adrs
+                        False -> a:adrs
 
 writeChat :: Socket -> MVar [SockAddr] -> IO ()
 writeChat s m = forever $ do
